@@ -1,6 +1,6 @@
 import numpy as np
 import sympy as sp
-def pcd_SCARA(q,a):
+def pcd_SCARA(q,a_aux):
     """
     Esta funcion calcula el problema cinematico directo del Robot SCARA
 
@@ -23,19 +23,33 @@ def pcd_SCARA(q,a):
     
     """
     # Los vectores en python arrancan en cero, en matlab arrancan en 1
-    q12 =  q[0] + q[1]
-    q124 =  q12 + q[3] 
+    # q12 =  q[0] + q[1]
+    # q124 =  q12 + q[3] 
     
-    POSE = sp.Matrix([  [sp.cos(q124), -sp.sin(q124),0, a[0]*sp.cos(q[0])+a[1]*sp.cos(q12) ], 
-                        [sp.sin(q124), sp.cos(q124), 0, a[0]*sp.sin(q[0])+a[1]*sp.sin(q12) ],
-                        [0,0,1,q[2]],
-                        [0,0,0,1]])
+    d = sp.Matrix([0,0,q[2],0])
+    a = sp.Matrix([a_aux[0],a_aux[1],0,0])
+    POSE = sp.eye(4,4)
+    POSE_aux = []
+    for i in range(len(q)):
+        POSE_aux.append( sp.Matrix([[sp.cos(q[i]), -sp.sin(q[i])*sp.cos(0), sp.sin(q[i])*sp.sin(0), a[i]*sp.cos(q[i])],
+                            [sp.sin(q[i]), sp.cos(q[i])*sp.cos(0), -sp.cos(q[i])*sp.sin(0),a[i]*sp.sin(q[i])],
+                            [0, sp.sin(0), sp.cos(0),d[i]],
+                            [0, 0, 0, 1]])
+                        )
+        POSE = POSE * POSE_aux[i] 
+    
+    
+    
+    # POSE = sp.Matrix([  [sp.cos(q124), -sp.sin(q124),0, a[0]*sp.cos(q[0])+a[1]*sp.cos(q12) ], 
+    #                     [sp.sin(q124), sp.cos(q124), 0, a[0]*sp.sin(q[0])+a[1]*sp.sin(q12) ],
+    #                     [0,0,1,q[2]],
+    #                     [0,0,0,1]])
     # Calculamos el vector de configuracion
     conf = sp.sign(q[1])
     # La configuracion no puede ser nula
     if conf == 0:
         conf = 1
-    return POSE, conf
+    return POSE, conf, POSE_aux
     
     
 
@@ -130,8 +144,8 @@ def pcd_IRB140(d,q,alpha,a):
                           [0, 0, 0, 1]])
                         )
         POSE = POSE * POSE_aux[i] 
-        print("matriz RotoTras",i+1 )
-        sp.pprint(POSE.evalf())
+        # print("matriz RotoTras",i+1 )
+        # sp.pprint(POSE.evalf())
     # print("mi matriz",POSE)
     # Calculo el vector de configuracion
     conf = sp.zeros(1,3)
@@ -150,7 +164,7 @@ def pcd_IRB140(d,q,alpha,a):
     conf = conf.applyfunc(reemplazar_ceros)
      
     
-    return POSE, conf
+    return POSE, conf , POSE_aux
 
 def pinv_IRB140(POSE,conf,q1_actual,q4_actual,d,alpha,a):
     """
