@@ -51,20 +51,6 @@ else
     disp(['Utilizando MATLAB ', verMatlab.Release]);
 end
 
-%% Prueba rayinterseccion
-%       % Crear una cuadrícula de ocupación
-%       map = robotics.OccupancyGrid(eye(10));
-% 
-%       % Establecer la ocupación en la coordenada del mundo (5, 5)
-%       setOccupancy(map, [5 5], 0.5);
-% 
-%       % Obtener los puntos de colisión
-%       collisionPts = rayIntersection(map, [0,0,0], [-pi/2, pi/2], 15);
-% 
-%       % Visualizar los puntos de colisión
-%       show(map);
-%       hold('on');
-%       plot(collisionPts(:,1),collisionPts(:,2) , '*')
 %% Crear sensor lidar en simulador
 lidar = LidarSensor;
 lidar.sensorOffset = [0,0];     % Posicion del sensor en el robot (asumiendo mundo 2D)
@@ -83,11 +69,12 @@ attachLidarSensor(viz,lidar);
 
 %% Parametros de la Simulacion
 
-simulationDuration = 5*60;     % Duracion total [s]
+simulationDuration = 10*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
 cantidad_particulas = 1000;
 cteSumPesos = 1e+2;
-umbralLocazacion = 1e6;
+umbralLocazacion = 6e6;
+% umbralLocazacion = 3e6;
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
 umbralDistanciaColision = 0.6;
@@ -96,9 +83,11 @@ noColision = true;
 valMapa = false;
 localizado =false;
 % Datos del camino
+buscarCamino=true;
+intermedio1 = [8.22,6.18];
+intermedio2 = [7.9,4.2];
 objetivo1 = [5.3,4.3];
-
-intermedio = [8.22,6.18];
+tolerancia = 0.01;
 
 %  probar iniciar el robot en distintos lugares                                  
 % initPose = [14; 7; deg2rad(225)];        
@@ -157,16 +146,19 @@ for idx = 2:numel(tVec)
          % generar velocidades para este timestep
         
         % Si el flag de noColision es verdadero entonces avanzamos linealmente
-        if noColision
-            v_cmd = vxRef(idx-1);
-            w_cmd = wRef(idx-1); 
-        else
-        % Si se detecta colision se reduce la velocidad al 50% y se realiza
-        % un giro relativamente suave multiplicado por el signo de giro que
-        % se explica mas abajo
-            v_cmd = 0.05;
-        % Si se sube mucho w_cmd es menos suave la trayectoria
-            w_cmd = 0.25*sign(giro);
+        if (localizado == false && buscarCamino==true)
+            if noColision
+                v_cmd = vxRef(idx-1);
+                w_cmd = wRef(idx-1); 
+            else
+            % Si se detecta colision se reduce la velocidad al 50% y se realiza
+            % un giro relativamente suave multiplicado por el signo de giro que
+            % se explica mas abajo
+                v_cmd = 0.05;
+            % Si se sube mucho w_cmd es menos suave la trayectoria
+                w_cmd = 0.25*sign(giro);
+
+            end
         end
         % fin del COMPLETAR ACA
     
@@ -239,16 +231,18 @@ for idx = 2:numel(tVec)
                 disp('ya me localice')
             end
         end
-    else
+    elseif (localizado == true && buscarCamino==true)
         disp(mean(particles))
         disp( pose(:,idx))
 %         Actualizo la pose con el valor de lozalizacion
         pose(:,idx) = mean(particles)';
         
 %         voy desde la pose localizada del robot hasta punto intermedio
-        path = planning_framework(pose(:,idx),intermedio1 );
+        path1 = planning_framework(pose(:,idx),intermedio1 );
 %         Voy desde pose intermedia hasta la puerta del labo
-        path = planning_framework(intermedio1,objetivo1 );
+        path2 = planning_framework(intermedio1,intermedio2 );
+        path3 = planning_framework(intermedio2,objetivo1 );
+        buscarCamino = false;
         
     end
     %%
@@ -260,48 +254,63 @@ for idx = 2:numel(tVec)
     
 % Si alguno de los rayos es menor que el umbral de colisión entonces se
 % pone el flag de noColision en falso y se procede a actuar como sigue:
+    if (localizado == false && buscarCamino==true)
+%         si no estoy localizado y sigo buscando camino optimo
+        if any(ranges < umbralDistanciaColision)
+            disp('¡Pared detectada! Girando...')
+            noColision = false; 
 
-    if any(ranges < umbralDistanciaColision)
-        disp('¡Pared detectada! Girando...')
-        noColision = false; 
-        % obtengo el rayo detectado y su posicion de la colision mas
-        % proxima
-%         [valorMin, indice_obstaculo_min] = min(ranges);
-%         % obtengo el angulo del rayo
-%         anguloDecolision = rad2deg(lidar.scanAngles(indice_obstaculo_min));
-% 
-%         % obtengo el angulo del rayo mas largo, posible direccion de
-%         % correción
-%         [valorMax, indice_obstaculo_max] = max(ranges);
-        
-%         Se trabaja con el promedio de las distancias desde cero 
-%         hasta pi/2 y desde cero hasta -pi/2
-%         Calculamos el promedio de las distancias medidas por el lidar
-%         tomando la mitad de los rayos a derecha respecto del cero radianes
-%         del lidar, se hace lo mismo para la otra midad de los rayos. Si
-%         tenemos el mapa libre, alejado de una pared las distancias seran
-%         mayores y elevara el promedio de las distancias, en cambio cuando
-%         estamos cerca de un obstaculo el promedio de las distacias se
-%         reduce, entonces el robot va a girar hacia donde el promedio de
-%         las distancias es mayor, para ello en funcion de las
-%         especificaciones del enunciado una velocidad angular w_cmd > 0
-%         implica que el robot debe girar a la izquierda y viceversa.
+            promedioRangeDerecha = nanmean(ranges(1:int32(length(ranges)/2)));
+            promedioRangeIzquierda = nanmean(ranges(int32(length(ranges)/2):end));
+            if promedioRangeDerecha < promedioRangeIzquierda
+                giro = 1; %w_cmd > 0 gira hacia la izquierda
+            else
+                giro = -1;%w_cmd > 0 gira hacia la derecha
+            end   
 
-%       
-
-        promedioRangeDerecha = nanmean(ranges(1:int32(length(ranges)/2)));
-        promedioRangeIzquierda = nanmean(ranges(int32(length(ranges)/2):end));
-        if promedioRangeDerecha < promedioRangeIzquierda
-            giro = 1; %w_cmd > 0 gira hacia la izquierda
         else
-            giro = -1;%w_cmd > 0 gira hacia la derecha
-        end   
-        
+
+           disp('Camino Despejado Avanza tranquilo!')
+    %        avanza en base al mapa, tomando la trayectoria definida
+
+           noColision = true; 
+        end    
     else
-       disp('Camino Despejado Avanza tranquilo!')
-%        avanza en base al mapa, tomando la trayectoria definida
-       
-       noColision = true; 
+        disp('ya puedo empezar a recorrer la trayectoria')
+%         Con los comando de v y w que le pase va a actualizar la pose en simulacion
+%         y en el robot lo va a mover
+%         v_cmd = -0.3;
+%         armo los comandos para que sigan la trayectori
+%           pose(:,idx);
+        
+       %calculo angulo objetivo con las coodenas dadas
+        k = 2;
+        anguloInicial = rad2deg(pose(3,idx));
+        anguloObjetivo = rad2deg(atan2((path(k,2)- pose(2,idx)),(path1(k,1)- pose(1,idx))));
+
+        % Calcular la distancia en sentido horario y antihorario
+        distanciaHorario = mod(anguloObjetivo - anguloInicial, 360);
+        distanciaAntihorario = mod(anguloInicial - anguloObjetivo, 360);
+
+        % Decidir en qué dirección girar
+        if distanciaHorario < distanciaAntihorario
+            fprintf('Girar en sentido horario por %f grados\n', distanciaHorario);
+            giro = -1;%w_cmd > 0 gira hacia la derecha
+        else
+            fprintf('Girar en sentido antihorario por %f grados\n', distanciaAntihorario);
+            giro = 1; %w_cmd > 0 gira hacia la izquierda
+        end
+%         Ahora que ya tengo el angulo al que debe apuntar el robot, giro
+        v_cmd = 0;
+        % Si se sube mucho w_cmd es menos suave la trayectoria
+        w_cmd = deg2rad(anguloObjetivo)*sign(giro);
+%         if abs(pose(3,idx-1)-anguloObjetivo)<= tolerancia        
+        if abs(pose(3,idx)-anguloObjetivo)<= tolerancia
+            disp('ya estoy apuntando donde queres')
+%             Avanzo linealmente
+            
+        end
+        
     end
 
         
@@ -311,12 +320,12 @@ for idx = 2:numel(tVec)
     viz(pose(:,idx),ranges)
     
     hold on
-%     if (sumPesos> cteSumPesos)
-%         plot(particles(:, 1),particles(:, 2),'g.');
-%     end
-%     hold off
+    if (sumPesos> cteSumPesos)
+        plot(particles(:, 1),particles(:, 2),'g.');
+    end
+    hold off
 %     axis([-5 23 0 23]);
-    plot(new_particles(:, 1),new_particles(:, 2),'r.');
+%     plot(new_particles(:, 1),new_particles(:, 2),'r.');
     
 %     viz(pose(:,idx),pf.Particles); % Partículas en verde
 %     filename = sprintf('plots/PoseInit(5_3_0)_mapaViejo_%03d.png', idx-1);
