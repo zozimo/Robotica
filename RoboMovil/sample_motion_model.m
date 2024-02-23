@@ -5,8 +5,8 @@ function x_new = sample_motion_model(u,sampleTime, x)
     % x: set of old particles
 
     % Noise parameters
-    noise = [0.1 0.1 0.05 0.05,0.05,0.05];
-%      noise = [0.2 0.2 0.2 0.2,0.2,0.2];
+%     noise = [0.1 0.1 0.05 0.05,0.05,0.05];
+     noise = [0.5 0.5 0.5 0.5,0.5,0.5];
     % Particle count
     pc = size(x, 1);
     v = sqrt(u(1)^2+u(2)^2);
