@@ -35,7 +35,8 @@ function [weight, sumPesos ] = measurement_model(ranges, x, map,lidar)
     for i = 1:size(x, 1)
 %         initPose = [8; 9; deg2rad(180)];
 %         intersectionPts = rayIntersection(map,[8; 9; deg2rad(180)],angleReducido,lidar.maxRange);
-        intersectionPts = rayIntersection(map,x(i,:),angleReducido,lidar.maxRange,0.8);
+% Pongo umbral en 0.5 para que considere las zonas grises como pared y no pueda avanzar
+        intersectionPts = rayIntersection(map,x(i,:),angleReducido,lidar.maxRange,0.5);
 %         figure(2)
 %         show(map)     
 %         hold on

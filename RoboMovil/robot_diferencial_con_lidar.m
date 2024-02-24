@@ -60,7 +60,7 @@ hokuyo_step_a = deg2rad(-90);
 hokuyo_step_c = deg2rad(90);
 
 lidar.scanAngles = linspace(hokuyo_step_a,hokuyo_step_c,num_scans);
-lidar.maxRange = 5; %[m]
+lidar.maxRange = 10; %[m]
 
 %% Crear visualizacion
 viz = Visualizer2D;
@@ -73,13 +73,14 @@ simulationDuration = 100*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
 cantidad_particulas = 10000;
 % cteSumPesos = 1e2;
-resetParticles = 30;
+% resetParticles = 20;
+resetParticles = 0;
 resampleParticles = 100;
-% umbralLocalizacion = 1e+6;
-umbralLocalizacion = 2e5;
+umbralLocalizacion = 1e+6;
+% umbralLocalizacion = 5e9;
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
-umbralDistanciaColision = 1.2;
+umbralDistanciaColision = 1.5;
 % Declaramos una variable para detectar posible colisión
 noColision = true;  
 valMapa = false;
@@ -97,20 +98,22 @@ tolerancia = 0.01;
 % Datos del PD
 Kp_theta = 0.2; %Hcaerlo un poco mas agresivo a 0.25
 Kp_x = 1.20; %le bajo de 2
+% Kp_x = 2; %le bajo de 2
 Kd_theta = -0.05;
 Kd_x = 0.1;
 %  probar iniciar el robot en distintos lugares                                  
-initPose = [14; 7; deg2rad(225)];        
+% initPose = [14; 7; deg2rad(-135)];        
 % initPose = [7; 10; deg2rad(90)];         
 % initPose = [5; 4.2; deg2rad(90)]; 
-% initPose = [9.5; 15; deg2rad(-90)];
+% initPose = [9.5; 15; deg2rad(0)];
 
 % Poses posbibles en el 1erpiso
 % initPose = [9.5; 10; deg2rad(180)];%funco
 % initPose = [9; 9; deg2rad(120)]; %funco
-% initPose = [14; 7; deg2rad(120)]; %funco
+initPose = [14; 7; deg2rad(120)]; %funco
 % initPose = [8.5; 10; deg2rad(0)];%funco
 % initPose = [9; 15; deg2rad(-120)]; %funco        
+% initPose = [8.9; 8.18; deg2rad(135)];
 
 % Pose inicial para mapa viejo
 % initPose = [5; 3; deg2rad(90)];
@@ -161,7 +164,7 @@ for idx = 2:numel(tVec)
             % Si se detecta colision se reduce la velocidad al 50% y se realiza
             % un giro relativamente suave multiplicado por el signo de giro que
             % se explica mas abajo
-                v_cmd = 0.05;
+                v_cmd = 0.1;
             % Si se sube mucho w_cmd es menos suave la trayectoria
                 w_cmd = 0.25*sign(giro);
 
@@ -234,13 +237,18 @@ for idx = 2:numel(tVec)
                 particles = particles(1:resampleParticles:end,:);
                 filtro = false;
             end
-            if sumPesos < resetParticles
+            if sumPesos == resetParticles 
                particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
                filtro = true;
             end
 %             no restringo con el signo del angulo pero cuando asigno el angulo de las particulas los normalizo a pi
 %             if(sumPesos >= umbralLocalizacion && all(sign(mean(particles)') == sign(pose(:,idx))))
             if(sumPesos >= umbralLocalizacion)
+                aux = mean(particles);
+                if sign(aux(3)) ~= sign(pose(3,idx))
+                    particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
+                    filtro = true;
+                end
                 valMapa = true;
                 localizado = true;
                 disp('ya me localice')
@@ -259,10 +267,13 @@ for idx = 2:numel(tVec)
         path2 = planning_framework(intermedio1,intermedio2 );
         path2 = path2(1:4:end,:);
         path3 = planning_framework(intermedio2,intermedio3 );
-        path3 = path3(1:5:end,:);
+%         path3 = path3(1:5:end,:);
         path4 = planning_framework(intermedio3,objetivo1 );
-        path4 = path4(1:5:end,:);
-        path = [path1;path2;path3;path4];
+        %         path4 = path4(1:5:end,:);
+        aux = [path3;path4];
+        aux = aux(1:5:end,:);
+
+        path = [path1;path2;aux];
 %         path = path(1:5:end,:);
         buscarCamino = false;
         

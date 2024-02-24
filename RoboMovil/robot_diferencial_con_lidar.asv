@@ -60,7 +60,7 @@ hokuyo_step_a = deg2rad(-90);
 hokuyo_step_c = deg2rad(90);
 
 lidar.scanAngles = linspace(hokuyo_step_a,hokuyo_step_c,num_scans);
-lidar.maxRange = 5; %[m]
+lidar.maxRange = ; %[m]
 
 %% Crear visualizacion
 viz = Visualizer2D;
@@ -73,10 +73,11 @@ simulationDuration = 100*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
 cantidad_particulas = 10000;
 % cteSumPesos = 1e2;
-resetParticles = 30;
+% resetParticles = 20;
+resetParticles = 5;
 resampleParticles = 100;
-% umbralLocazacion = 1e+6;
-umbralLocazacion = 1.4e5;
+% umbralLocalizacion = 1e+6;
+umbralLocalizacion = 2e5;
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
 umbralDistanciaColision = 1.2;
@@ -93,25 +94,26 @@ intermedio2 = [7.74,4.82];
 intermedio3= [6.58,4.02];
 objetivo1 = [5.3,4.3];
 tolerancia = 0.01;
+
+% Datos del PD
 Kp_theta = 0.2; %Hcaerlo un poco mas agresivo a 0.25
-% Kp_x = 1.5; %le bajo de 2
-% Kp_x = 1.25; %le bajo de 2
-Kp_x = 1.20; %le bajo de 2
-% Kp_x = 0.9; %le bajo de 1.5
+% Kp_x = 1.20; %le bajo de 2
+Kp_x = 2; %le bajo de 2
 Kd_theta = -0.05;
 Kd_x = 0.1;
 %  probar iniciar el robot en distintos lugares                                  
 % initPose = [14; 7; deg2rad(225)];        
 % initPose = [7; 10; deg2rad(90)];         
 % initPose = [5; 4.2; deg2rad(90)]; 
-% initPose = [9.5; 15; deg2rad(-90)];
+% initPose = [9.5; 15; deg2rad(0)];
 
 % Poses posbibles en el 1erpiso
 % initPose = [9.5; 10; deg2rad(180)];%funco
 % initPose = [9; 9; deg2rad(120)]; %funco
 % initPose = [14; 7; deg2rad(120)]; %funco
-initPose = [9.5; 10; deg2rad(0)];%funco
-% initPose = [9; 15; deg2rad(-120)];         
+% initPose = [8.5; 10; deg2rad(0)];%funco
+% initPose = [9; 15; deg2rad(-120)]; %funco        
+initPose = [8.9; 8.18; deg2rad(45)];
 
 % Pose inicial para mapa viejo
 % initPose = [5; 3; deg2rad(90)];
@@ -125,18 +127,14 @@ tVec = 0:sampleTime:simulationDuration;         % Vector de Tiempo para duracion
 vxRef = 0.3*ones(size(tVec));   % Velocidad lineal a ser comandada
 wRef = zeros(size(tVec));       % Velocidad angular a ser comandada
 pose = zeros(3,numel(tVec));    % Inicializar matriz de pose
-pose(:,1) = initPose;
-
+if use_roomba == false
+    pose(:,1) = initPose;
+end
 %% Inicialización del Filtro de Partículas
-% numParticles = 100;
-% initialPose = [11; 20; deg2rad(0)];
-% initialCovariance = diag([0.1, 0.1, deg2rad(5)].^2);
 
-% Initialize particles
+
 load('espacioLibre1piso.mat');
-% particles = inicializarParticulas2(freeX,freeY,2500);
-
-% particles = inicializarParticulas2(freeX,freeY,800);
+% Initialize particles
 particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
 %% Simulacion
 
@@ -200,7 +198,7 @@ for idx = 2:numel(tVec)
         odompose.Pose.Pose.Orientation.Y, odompose.Pose.Pose.Orientation.Z];
         odomRotation = quat2eul(odomQuat);
         pose(:,idx) = [odompose.Pose.Pose.Position.X + initPose(1); odompose.Pose.Pose.Position.Y+ initPose(2); odomRotation(1)];
-        (pose(:,idx) - pose(:,idx-1))./; 
+        vel = (pose(:,idx) - pose(:,idx-1))./sampleTime; 
     else        % para usar el simulador
    
         % Mover el robot segun los comandos generados
@@ -214,6 +212,7 @@ for idx = 2:numel(tVec)
 %         pfVelocities = [vx; vy; w];
         % Realizar un paso de integracion
         pose(:,idx) = pose(:,idx-1) + vel*sampleTime; 
+%         vel2 = (pose(:,idx) - pose(:,idx-1))./sampleTime; 
         % Tomar nueva medicion del lidar
         ranges = double(lidar(pose(:,idx)));        
         % Se filtran las mediciones, debido a los dos parantes de la bandeja
@@ -233,10 +232,7 @@ for idx = 2:numel(tVec)
     if (localizado == false)
         new_particles = sample_motion_model(vel,sampleTime, particles);
         [weights,sumPesos ] = measurement_model(ranges, new_particles, map,lidar);
-%         if (sumPesos< cteSumPesos && valMapa == false)
-%             particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
-%         else
-            particles = resample(new_particles, weights);
+        particles = resample(new_particles, weights);
             if filtro == true
                 particles = particles(1:resampleParticles:end,:);
                 filtro = false;
@@ -246,7 +242,8 @@ for idx = 2:numel(tVec)
                filtro = true;
             end
 %             no restringo con el signo del angulo pero cuando asigno el angulo de las particulas los normalizo a pi
-            if(sumPesos >= umbralLocazacion && all(sign(mean(particles)') == sign(pose(:,idx))))
+%             if(sumPesos >= umbralLocalizacion && all(sign(mean(particles)') == sign(pose(:,idx))))
+            if(sumPesos >= umbralLocalizacion)
                 valMapa = true;
                 localizado = true;
                 disp('ya me localice')
@@ -265,10 +262,13 @@ for idx = 2:numel(tVec)
         path2 = planning_framework(intermedio1,intermedio2 );
         path2 = path2(1:4:end,:);
         path3 = planning_framework(intermedio2,intermedio3 );
-        path3 = path3(1:5:end,:);
+%         path3 = path3(1:5:end,:);
         path4 = planning_framework(intermedio3,objetivo1 );
-        path4 = path4(1:5:end,:);
-        path = [path1;path2;path3;path4];
+        %         path4 = path4(1:5:end,:);
+        aux = [path3;path4];
+        aux = aux(1:5:end,:);
+
+        path = [path1;path2;aux];
 %         path = path(1:5:end,:);
         buscarCamino = false;
         
@@ -308,8 +308,8 @@ for idx = 2:numel(tVec)
         disp('ya puedo empezar a recorrer la trayectoria')
 
 %% Pid
-        eX = (path(k,1)- pose(1,idx))
-        eY = (path(k,2)- pose(2,idx))
+        eX = (path(k,1)- pose(1,idx));
+        eY = (path(k,2)- pose(2,idx));
         eX_dot = eX/ sampleTime;
         eY_dot = eY/ sampleTime;
         anguloInicial = rad2deg(pose(3,idx));
@@ -319,18 +319,18 @@ for idx = 2:numel(tVec)
         distanciaAntihorario = mod(anguloInicial - anguloObjetivo, 360);
       
         eTheta = anguloObjetivo - anguloInicial;
-        eTheta = deg2rad(eTheta)
+        eTheta = deg2rad(eTheta);
         eTheta_dot = eTheta / sampleTime;
         % Calcular el control PID de orientación
-        w_cmd = Kp_theta * eTheta - Kd_theta * eTheta_dot
+        w_cmd = Kp_theta * eTheta - Kd_theta * eTheta_dot;
         if abs(w_cmd) > 0.4
             disp('error me fui de rosca!!!!!!!!!!!!!1')
         end
         v_cmd = 0;
 %         disp(eTheta)
         if abs(eTheta) < 0.05
-            v_cmd = Kp_x * sqrt(eX^2 + eY^2)%+ Kd_ * sqrt(eX_dot^2 + eY_dot^2);
-            w_cmd = 0
+            v_cmd = Kp_x * sqrt(eX^2 + eY^2);%+ Kd_ * sqrt(eX_dot^2 + eY_dot^2);
+            w_cmd = 0;
             if abs(v_cmd) > 0.15
                 disp('error me fui de rosca Lineal!!!!!!!!!!!!!1')
             end

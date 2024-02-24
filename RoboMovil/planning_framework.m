@@ -3,7 +3,7 @@ function path = planning_framework(pose, goal)
     % where y is the row and x is the column
 
 %     clear
-%     close all;clear all;
+%     close all;clear all   ;
     % TrayectoriaImg = "plots/SinHeuristicaDijkstra.png"; % Poner en cero la "HeuristicaON=0" en heuristic.m
 %     TrayectoriaImg = "plots/HeuristicaA_asterisco_Ka_1.png"; % Poner en cero la "k_A=1" en heuristic.m
     % TrayectoriaImg = "plots/HeuristicaA_asterisco_Ka_2.png"; % Poner en cero la "k_A=2" en heuristic.m
