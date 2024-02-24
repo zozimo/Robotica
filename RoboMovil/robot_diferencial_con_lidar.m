@@ -80,7 +80,7 @@ umbralLocalizacion = 1e+6;
 % umbralLocalizacion = 5e9;
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
-umbralDistanciaColision = 1.5;
+umbralDistanciaColision = 0.7;
 % Declaramos una variable para detectar posible colisión
 noColision = true;  
 valMapa = false;
@@ -90,7 +90,7 @@ filtro = true;
 % Datos del camino
 buscarCamino=true;
 intermedio1 = [8.22,6.18];
-intermedio2 = [7.74,4.82];
+intermedio2 = [7.95,4.82];
 intermedio3= [6.58,4.02];
 objetivo1 = [5.3,4.3];
 tolerancia = 0.01;
@@ -110,10 +110,11 @@ Kd_x = 0.1;
 % Poses posbibles en el 1erpiso
 % initPose = [9.5; 10; deg2rad(180)];%funco
 % initPose = [9; 9; deg2rad(120)]; %funco
-initPose = [14; 7; deg2rad(120)]; %funco
+% initPose = [14; 7; deg2rad(120)]; %funco
 % initPose = [8.5; 10; deg2rad(0)];%funco
 % initPose = [9; 15; deg2rad(-120)]; %funco        
-% initPose = [8.9; 8.18; deg2rad(135)];
+% initPose = [8.9; 8.18; deg2rad(135)];%funco  
+initPose = [9.38; 14.22; deg2rad(-160)];%funco  
 
 % Pose inicial para mapa viejo
 % initPose = [5; 3; deg2rad(90)];
