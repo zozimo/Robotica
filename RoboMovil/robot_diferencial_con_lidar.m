@@ -71,14 +71,16 @@ attachLidarSensor(viz,lidar);
 
 simulationDuration = 100*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
-cantidad_particulas = 10000;
+% cantidad_particulas = 10000;
+cantidad_particulas = 20000;
 % cantidad_particulas = 30000;
 % cteSumPesos = 1e2;
 % resetParticles = 1e-200;
 resetParticles = 0;
-resampleParticles = 100;
+% resampleParticles = 100;
+resampleParticles = 200;
 % resampleParticles = 300;
-umbralLocalizacion = 1e+6;
+% umbralLocalizacion = 1e+6;
 % umbralLocalizacion = 1e5;
 threshold = 0.5;
 diffMaximaPose = 0.01;
@@ -102,7 +104,7 @@ tolerancia = 0.01;
 
 % Datos del PD
 Kp_theta = 0.2; %Hcaerlo un poco mas agresivo a 0.25
-Kp_x = 1.20; %le bajo de 2
+Kp_x = 1.25; %le bajo de 2
 % Kp_x = 2; %le bajo de 2
 Kd_theta = -0.05;
 Kd_x = 0.1;
@@ -255,7 +257,7 @@ for idx = 2:numel(tVec)
 %             if(sumPesos >= umbralLocalizacion && all(sign(mean(particles)') == sign(pose(:,idx))))
 %             if(sumPesos >= umbralLocalizacion)
             aux = mean(particles)';
-            if (pose(1,idx)-aux(1))<diffMaximaPose && (pose(2,idx)-aux(2))<diffMaximaPose && (pose(3,idx)-aux(3))<diffMaximaPose
+            if abs(pose(1,idx)-aux(1))<diffMaximaPose && abs(pose(2,idx)-aux(2))<diffMaximaPose && abs(pose(3,idx)-aux(3))<diffMaximaPose
     
                 if sign(aux(3)) ~= sign(pose(3,idx))
                     particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
@@ -268,7 +270,7 @@ for idx = 2:numel(tVec)
 %         end
     elseif (localizado == true && buscarCamino==true)
         disp(mean(particles))
-        disp( pose(:,idx))
+        disp( pose(:,idx)')
 %         Actualizo la pose con el valor de lozalizacion
         pose(:,idx) = mean(particles)';
         
