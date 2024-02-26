@@ -266,13 +266,15 @@ for idx = 2:numel(tVec)
                 valMapa = true;
                 localizado = true;
                 disp('ya me localice')
+                disp(mean(particles))
+                disp( pose(:,idx)')
+%         Actualizo la pose con el valor de lozalizacion
+                pose(:,idx) = mean(particles)';
             end
 %         end
     elseif (localizado == true && buscarCamino==true)
-        disp(mean(particles))
-        disp( pose(:,idx)')
-%         Actualizo la pose con el valor de lozalizacion
-        pose(:,idx) = mean(particles)';
+        
+
         
 %         voy desde la pose localizada del robot hasta punto intermedio
         path1 = planning_framework(pose(:,idx),intermedio1 );
