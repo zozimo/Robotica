@@ -60,7 +60,7 @@ hokuyo_step_a = deg2rad(-90);
 hokuyo_step_c = deg2rad(90);
 
 lidar.scanAngles = linspace(hokuyo_step_a,hokuyo_step_c,num_scans);
-lidar.maxRange = ; %[m]
+lidar.maxRange = 10; %[m]
 
 %% Crear visualizacion
 viz = Visualizer2D;
@@ -72,15 +72,20 @@ attachLidarSensor(viz,lidar);
 simulationDuration = 100*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
 cantidad_particulas = 10000;
+% cantidad_particulas = 30000;
 % cteSumPesos = 1e2;
-% resetParticles = 20;
-resetParticles = 5;
+% resetParticles = 1e-200;
+resetParticles = 0;
 resampleParticles = 100;
-% umbralLocalizacion = 1e+6;
-umbralLocalizacion = 2e5;
+% resampleParticles = 300;
+umbralLocalizacion = 1e+6;
+% umbralLocalizacion = 1e5;
+threshold = 0.5;
+
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
-umbralDistanciaColision = 1.2;
+umbralDistanciaColision = 0.7;
+% umbralDistanciaColision = 1.2;
 % Declaramos una variable para detectar posible colisión
 noColision = true;  
 valMapa = false;
@@ -90,19 +95,19 @@ filtro = true;
 % Datos del camino
 buscarCamino=true;
 intermedio1 = [8.22,6.18];
-intermedio2 = [7.74,4.82];
+intermedio2 = [7.95,4.82];
 intermedio3= [6.58,4.02];
 objetivo1 = [5.3,4.3];
 tolerancia = 0.01;
 
 % Datos del PD
 Kp_theta = 0.2; %Hcaerlo un poco mas agresivo a 0.25
-% Kp_x = 1.20; %le bajo de 2
-Kp_x = 2; %le bajo de 2
+Kp_x = 1.20; %le bajo de 2
+% Kp_x = 2; %le bajo de 2
 Kd_theta = -0.05;
 Kd_x = 0.1;
 %  probar iniciar el robot en distintos lugares                                  
-% initPose = [14; 7; deg2rad(225)];        
+% initPose = [14; 7; deg2rad(-135)];        
 % initPose = [7; 10; deg2rad(90)];         
 % initPose = [5; 4.2; deg2rad(90)]; 
 % initPose = [9.5; 15; deg2rad(0)];
@@ -111,10 +116,11 @@ Kd_x = 0.1;
 % initPose = [9.5; 10; deg2rad(180)];%funco
 % initPose = [9; 9; deg2rad(120)]; %funco
 % initPose = [14; 7; deg2rad(120)]; %funco
-% initPose = [8.5; 10; deg2rad(0)];%funco
+initPose = [8.5; 10; deg2rad(0)];%funco
 % initPose = [9; 15; deg2rad(-120)]; %funco        
-initPose = [8.9; 8.18; deg2rad(45)];
-
+% initPose = [8.9; 8.18; deg2rad(135)];%funco  
+% % initPose = [9.38; 14.22; deg2rad(-160)];%funco  
+% initPose = [11.9; 7.7; deg2rad(85)];%funco  
 % Pose inicial para mapa viejo
 % initPose = [5; 3; deg2rad(90)];
 % initPose = [5; 3; deg2rad(-90)];
@@ -231,19 +237,30 @@ for idx = 2:numel(tVec)
         
     if (localizado == false)
         new_particles = sample_motion_model(vel,sampleTime, particles);
-        [weights,sumPesos ] = measurement_model(ranges, new_particles, map,lidar);
+        
+        [weights,sumPesos ] = measurement_model(ranges, new_particles, map,lidar,threshold);
+        
         particles = resample(new_particles, weights);
             if filtro == true
                 particles = particles(1:resampleParticles:end,:);
+                threshold = 0.9;
                 filtro = false;
             end
-            if sumPesos < resetParticles
+            if sumPesos < resetParticles 
                particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
+               threshold = 0.5;
                filtro = true;
             end
 %             no restringo con el signo del angulo pero cuando asigno el angulo de las particulas los normalizo a pi
 %             if(sumPesos >= umbralLocalizacion && all(sign(mean(particles)') == sign(pose(:,idx))))
-            if(sumPesos >= umbralLocalizacion)
+%             if(sumPesos >= umbralLocalizacion)
+              aux = mean(particles)';
+            if (pose(1,idx-1)-aux(1))<0.02 && (pose(1,idx-1)-aux(1))<0.02
+                aux = mean(particles);
+                if sign(aux(3)) ~= sign(pose(3,idx))
+                    particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
+                    filtro = true;
+                end
                 valMapa = true;
                 localizado = true;
                 disp('ya me localice')

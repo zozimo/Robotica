@@ -1,4 +1,4 @@
-function [weight, sumPesos ] = measurement_model(ranges, x, map,lidar)
+function [weight, sumPesos ] = measurement_model(ranges, x, map,lidar,threshold)
     % Computes the observation likelihood of all particles.
     %
     % El modelo de sensor empleado es de lidar en un rango de -90° a 90°.
@@ -36,7 +36,7 @@ function [weight, sumPesos ] = measurement_model(ranges, x, map,lidar)
 %         initPose = [8; 9; deg2rad(180)];
 %         intersectionPts = rayIntersection(map,[8; 9; deg2rad(180)],angleReducido,lidar.maxRange);
 % Pongo umbral en 0.5 para que considere las zonas grises como pared y no pueda avanzar
-        intersectionPts = rayIntersection(map,x(i,:),angleReducido,lidar.maxRange,0.5);
+        intersectionPts = rayIntersection(map,x(i,:),angleReducido,lidar.maxRange,threshold);
 %         figure(2)
 %         show(map)     
 %         hold on

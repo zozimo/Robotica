@@ -72,15 +72,20 @@ attachLidarSensor(viz,lidar);
 simulationDuration = 100*60;     % Duracion total [s]
 sampleTime = 0.1;                   % Sample time [s]
 cantidad_particulas = 10000;
+% cantidad_particulas = 30000;
 % cteSumPesos = 1e2;
-% resetParticles = 20;
+% resetParticles = 1e-200;
 resetParticles = 0;
 resampleParticles = 100;
+% resampleParticles = 300;
 umbralLocalizacion = 1e+6;
-% umbralLocalizacion = 5e9;
+% umbralLocalizacion = 1e5;
+threshold = 0.5;
+diffMaximaPose = 0.01;
 % Definimos un umbral de medicion de distancia para evitar actuar y evitar
 % choque calculado para 1000 particulas
 umbralDistanciaColision = 0.7;
+% umbralDistanciaColision = 1.2;
 % Declaramos una variable para detectar posible colisión
 noColision = true;  
 valMapa = false;
@@ -111,11 +116,11 @@ Kd_x = 0.1;
 % initPose = [9.5; 10; deg2rad(180)];%funco
 % initPose = [9; 9; deg2rad(120)]; %funco
 % initPose = [14; 7; deg2rad(120)]; %funco
-% initPose = [8.5; 10; deg2rad(0)];%funco
+initPose = [8.5; 10; deg2rad(0)];%funco
 % initPose = [9; 15; deg2rad(-120)]; %funco        
 % initPose = [8.9; 8.18; deg2rad(135)];%funco  
-initPose = [9.38; 14.22; deg2rad(-160)];%funco  
-
+% % initPose = [9.38; 14.22; deg2rad(-160)];%funco  
+% initPose = [11.9; 7.7; deg2rad(85)];%funco  
 % Pose inicial para mapa viejo
 % initPose = [5; 3; deg2rad(90)];
 % initPose = [5; 3; deg2rad(-90)];
@@ -165,7 +170,7 @@ for idx = 2:numel(tVec)
             % Si se detecta colision se reduce la velocidad al 50% y se realiza
             % un giro relativamente suave multiplicado por el signo de giro que
             % se explica mas abajo
-                v_cmd = 0.1;
+                v_cmd = 0.05;
             % Si se sube mucho w_cmd es menos suave la trayectoria
                 w_cmd = 0.25*sign(giro);
 
@@ -232,20 +237,26 @@ for idx = 2:numel(tVec)
         
     if (localizado == false)
         new_particles = sample_motion_model(vel,sampleTime, particles);
-        [weights,sumPesos ] = measurement_model(ranges, new_particles, map,lidar);
+        
+        [weights,sumPesos ] = measurement_model(ranges, new_particles, map,lidar,threshold);
+        
         particles = resample(new_particles, weights);
             if filtro == true
                 particles = particles(1:resampleParticles:end,:);
+                threshold = 0.9;
                 filtro = false;
             end
-            if sumPesos == resetParticles 
+            if sumPesos < resetParticles 
                particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
+               threshold = 0.5;
                filtro = true;
             end
 %             no restringo con el signo del angulo pero cuando asigno el angulo de las particulas los normalizo a pi
 %             if(sumPesos >= umbralLocalizacion && all(sign(mean(particles)') == sign(pose(:,idx))))
-            if(sumPesos >= umbralLocalizacion)
-                aux = mean(particles);
+%             if(sumPesos >= umbralLocalizacion)
+            aux = mean(particles)';
+            if (pose(1,idx)-aux(1))<diffMaximaPose && (pose(2,idx)-aux(2))<diffMaximaPose && (pose(3,idx)-aux(3))<diffMaximaPose
+    
                 if sign(aux(3)) ~= sign(pose(3,idx))
                     particles = inicializarParticulas(freeX,freeY,cantidad_particulas);
                     filtro = true;
@@ -254,7 +265,7 @@ for idx = 2:numel(tVec)
                 localizado = true;
                 disp('ya me localice')
             end
-%         e nd
+%         end
     elseif (localizado == true && buscarCamino==true)
         disp(mean(particles))
         disp( pose(:,idx))
